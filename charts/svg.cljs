@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [clojure.string :as str]))
 
-(defn points-view-core [{:keys [objects style padding-percent]}]
+(defn chart [{:keys [objects style padding-percent]}]
   (let [state (r/atom nil)
 
         padding-percent (or padding-percent 5)
@@ -63,22 +63,20 @@
 
         process-object (fn [[obj-type {:keys [on-drag-start on-drag on-drag-end] :as params} :as object]]
                          (when object
-                           (let [pp (case obj-type
+                           [obj-type
+                            (cond-> (case obj-type
                                       :circle (-> params (update :cx norm-x) (update :cy norm-y))
                                       :polyline (update params :points #(->> %
                                                                              (map (fn [{:keys [x y]}] (str (norm-x x) "," (norm-y y))))
                                                                              (str/join " ")))
                                       params)
-                                 ppp (if on-drag
-                                       (-> pp
-                                           (assoc :onMouseDown (mouse-down params))
-                                           (dissoc :on-drag-start :on-drag :on-drag-end))
-                                       pp)]
-                             [obj-type ppp])))]
+                              (or on-drag-start on-drag on-drag-end)
+                              (-> (assoc :onMouseDown (mouse-down params))
+                                  (dissoc :on-drag-start :on-drag :on-drag-end)))]))]
 
     (r/create-class
      {:component-did-mount (fn [this]
-                            ;  (prn "component-did-mount")
+                             ;  (prn "component-did-mount")
                              (.addEventListener js/window "resize" handle-window-resize)
                              (swap! state assoc :area-node (r/dom-node this)))
 
@@ -99,7 +97,8 @@
                         (let [processed-objects (keep process-object objects)]
                           [:div.svg-container {:style {:width "100%" :height "100%"
                                                        :overflow :hidden}}
-                           [:svg {:width "100%" :height "100%"
+                           [:svg {; :width area-width :height area-height
+                                  ; :viewBox (str/join " " [top-left-x top-left-y width height])
+                                  :width "100%" :height "100%"
                                   :style style}
-                                  ;;{:viewBox "0 0 1 1"}
                             (when-not (empty? processed-objects) (into [:<>] processed-objects))]]))})))
